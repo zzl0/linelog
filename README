@@ -1,4 +1,4 @@
-NOTE: this is a copy of [Sapling's linelog](https://github.com/facebook/sapling/tree/main/eden/scm/lib/linelog).
+NOTE: this is a copy of Sapling's linelog: https://github.com/facebook/sapling/tree/main/eden/scm/lib/linelog
 
 linelog is a storage format inspired by the "Interleaved deltas" idea. See
 https://en.wikipedia.org/wiki/Interleaved_deltas for its introduction.

@@ -23,7 +23,7 @@ fn test_empty() {
 #[test]
 fn test_edit_single() {
     let log = LineLog::default();
-    let log = log.edit_chunk(0, 0, 0, 1, lines("c\nd\ne\n"));
+    let log = log.edit_chunk(0, 0..0, 1, lines("c\nd\ne\n"));
     assert_eq!(log.checkout_text(0), "");
     assert_eq!(log.checkout_text(1), "c\nd\ne\n");
     assert_eq!(log.show(1), ["1:c", "1:d", "1:e", "0:"]);
@@ -32,18 +32,18 @@ fn test_edit_single() {
 #[test]
 fn test_edit_rev0() {
     let log = LineLog::default();
-    let log = log.edit_chunk(0, 0, 0, 0, lines("c\n"));
+    let log = log.edit_chunk(0, 0..0, 0, lines("c\n"));
     assert_eq!(log.checkout_text(0), "c\n");
-    let log = log.edit_chunk(0, 1, 1, 1, lines("d\n"));
+    let log = log.edit_chunk(0, 1..1, 1, lines("d\n"));
     assert_eq!(log.checkout_text(0), "c\n");
     assert_eq!(log.checkout_text(1), "c\nd\n");
     assert_eq!(log.show(1), ["0:c", "1:d", "0:"]);
     // Edit an old version.
-    let log = log.edit_chunk(0, 0, 0, 0, lines("b\n"));
+    let log = log.edit_chunk(0, 0..0, 0, lines("b\n"));
     assert_eq!(log.checkout_text(1), "b\nc\nd\n");
     assert_eq!(log.show(1), ["0:b", "0:c", "1:d", "0:"]);
     // Try deletion.
-    let log = log.edit_chunk(1, 1, 3, 2, lines("k\n"));
+    let log = log.edit_chunk(1, 1..3, 2, lines("k\n"));
     assert_eq!(log.show_range(0, 2), ["0:b", "2:k", "-0:c", "-1:d", "-0:"]);
 }
 
@@ -101,8 +101,7 @@ fn test_random_cases() {
             let a_rev = log.max_rev();
             log = log.edit_chunk(
                 a_rev + a_rev_offset,
-                *a1,
-                *a2,
+                *a1..*a2,
                 *b_rev + b_rev_offset,
                 b_lines.clone(),
             );

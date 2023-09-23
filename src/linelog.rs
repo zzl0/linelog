@@ -7,6 +7,7 @@
 
 use std::collections::HashSet;
 use std::fmt;
+use std::ops::Range;
 use std::sync::Arc;
 
 use im::Vector as ImVec;
@@ -72,7 +73,7 @@ impl<T> AbstractLineLog<T> {
 }
 
 impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
-    /// Edit chunk. Replace lines from `a1` (inclusive) to `a2` (exclusive) in rev
+    /// Edit chunk. Replace lines specified by `a_line_indexes` in rev
     /// `a_rev` with `b_lines`. `b_lines` are considered introduced by `b_rev`.
     /// If `b_lines` is empty, the edit is a deletion. If `a1` equals to `a2`,
     /// the edit is an insertion. Otherwise, the edit is a modification.
@@ -83,13 +84,12 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
     pub fn edit_chunk(
         self,
         a_rev: Rev,
-        a1: LineIdx,
-        a2: LineIdx,
+        a_line_indexes: Range<LineIdx>,
         b_rev: Rev,
         b_lines: Vec<T>,
     ) -> Self {
         self.with_a_lines_cache(a_rev, b_rev, |this: Self, maybe_mut| {
-            this.edit_chunk_internal(a1, a2, b_rev, b_lines, maybe_mut)
+            this.edit_chunk_internal(a_line_indexes, b_rev, b_lines, maybe_mut)
         })
     }
 
@@ -161,19 +161,19 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
     // private because of `a_lines`.
     fn edit_chunk_internal(
         self,
-        a1: LineIdx,
-        a2: LineIdx,
+        a_line_indexes: Range<LineIdx>,
         b_rev: Rev,
         b_lines: Vec<T>,
         mut a_lines: MaybeMut<ImVec<LineInfo<T>>>,
     ) -> Self {
-        assert!(a1 <= a2);
-        assert!(a2 <= a_lines.len());
+        assert!(a_line_indexes.end <= a_lines.len());
 
-        if a1 == a2 && b_lines.is_empty() {
+        if a_line_indexes.is_empty() && b_lines.is_empty() {
             return self;
         }
 
+        let a1 = a_line_indexes.start;
+        let a2 = a_line_indexes.end;
         let start = self.code.len();
 
         // See also https://sapling-scm.com/docs/internals/linelog/#editing-linelog

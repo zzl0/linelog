@@ -5,6 +5,8 @@
  * GNU General Public License version 2.
  */
 
+use std::ops::RangeInclusive;
+
 use im::Vector as ImVec;
 use rand_chacha::rand_core::RngCore;
 use rand_chacha::rand_core::SeedableRng;
@@ -44,7 +46,7 @@ fn test_edit_rev0() {
     assert_eq!(log.show(1), ["0:b", "0:c", "1:d", "0:"]);
     // Try deletion.
     let log = log.edit_chunk(1, 1..3, 2, lines("k\n"));
-    assert_eq!(log.show_range(0, 2), ["0:b", "2:k", "-0:c", "-1:d", "-0:"]);
+    assert_eq!(log.show_range(0..=2), ["0:b", "2:k", "-0:c", "-1:d", "-0:"]);
 }
 
 #[test]
@@ -129,8 +131,8 @@ impl LineLog {
             .collect()
     }
 
-    fn show_range(&self, start: usize, end: usize) -> Vec<String> {
-        self.checkout_range_lines(start, end)
+    fn show_range(&self, revs: RangeInclusive<usize>) -> Vec<String> {
+        self.checkout_range_lines(revs)
             .into_iter()
             .map(|l| {
                 format!(

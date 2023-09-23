@@ -8,6 +8,7 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::ops::Range;
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use im::Vector as ImVec;
@@ -101,19 +102,18 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
             }
         }
 
-        self.execute(rev, rev, None)
+        self.execute(rev..=rev, None)
     }
 
-    /// Checkout the lines of the given revision range `start` to `end`, both
-    /// inclusive.
+    /// Checkout the lines of the given inclusive revision range `revs`.
     ///
-    /// For example, if `start` is 0, and `rev` is `max_rev()`, the result will
+    /// For example, if `revs.start()` is 0, and `revs.end()` is `max_rev()`, the result will
     /// include all lines ever existed in all revisions.
-    pub fn checkout_range_lines(&self, start: Rev, end: Rev) -> ImVec<LineInfo<T>> {
-        let lines = self.checkout_lines(end);
+    pub fn checkout_range_lines(&self, revs: RangeInclusive<Rev>) -> ImVec<LineInfo<T>> {
+        let lines = self.checkout_lines(*revs.end());
         let present_pc_set = lines.into_iter().map(|l| l.pc).collect::<HashSet<Pc>>();
         let is_present = move |pc| present_pc_set.contains(&pc);
-        self.execute(start, end, Some(Box::new(is_present)))
+        self.execute(revs, Some(Box::new(is_present)))
     }
 
     fn with_a_lines_cache(
@@ -131,7 +131,7 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
             }
             _ => None,
         })
-        .unwrap_or_else(|| self.execute(a_rev, a_rev, None));
+        .unwrap_or_else(|| self.execute(a_rev..=a_rev, None));
 
         // Can only update cache if there are no possible edits between a_rev and b_rev.
         // It could be a_rev == b_rev, or b_rev >= a_rev >= max_rev.
@@ -147,7 +147,7 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
         if can_update_cache {
             #[cfg(debug_assertions)]
             {
-                let fresh_lines = result.execute(b_rev, b_rev, None);
+                let fresh_lines = result.execute(b_rev..=b_rev, None);
                 assert_eq!(fresh_lines, a_lines);
             }
             result.a_lines_cache = Some((b_rev, a_lines));
@@ -301,8 +301,7 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
     // private because of `present`. no caching.
     fn execute(
         &self,
-        start_rev: Rev,
-        end_rev: Rev,
+        revs: RangeInclusive<Rev>,
         present: Option<Box<dyn Fn(Pc) -> bool>>,
     ) -> ImVec<LineInfo<T>> {
         let mut lines = ImVec::<LineInfo<T>>::new();
@@ -313,6 +312,8 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
             Some(present) => !present(pc),
             None => false,
         };
+        let start_rev = revs.start();
+        let end_rev = revs.end();
         while patience > 0 {
             let code = &self.code[pc];
             match code {
@@ -329,14 +330,14 @@ impl<T: Clone + Default + PartialEq + fmt::Debug> AbstractLineLog<T> {
                     break;
                 }
                 Inst::JGE(rev, j_pc) => {
-                    if start_rev >= *rev {
+                    if start_rev >= rev {
                         pc = *j_pc;
                     } else {
                         pc += 1;
                     }
                 }
                 Inst::JL(rev, j_pc) => {
-                    if end_rev < *rev {
+                    if end_rev < rev {
                         pc = *j_pc;
                     } else {
                         pc += 1;
